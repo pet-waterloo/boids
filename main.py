@@ -12,7 +12,7 @@ SORA.initialize(
     {
         "fps": 30,
         "window_size": [1280, 720],
-        "window_flags": pygame.RESIZABLE | pygame.OPENGL | pygame.DOUBLEBUF,
+        "window_flags": pygame.RESIZABLE, #| pygame.OPENGL | pygame.DOUBLEBUF,
         "window_bits": 32,
         "framebuffer_flags": pygame.SRCALPHA,
         "framebuffer_size": [1280 // 3, 720 // 3],
@@ -32,74 +32,6 @@ if SORA.is_flag_active(pygame.OPENGL):
 
 
 # ------------------------------ #
-# post setup
-
-mgl.ModernGL.create_context(
-    options={
-        "standalone": False,
-        "gc_mode": "context_gc",
-        "clear_color": [0.0, 0.0, 0.0, 1.0],
-    }
-)
-
-shader = mgl.ShaderProgram("assets/shaders/default.glsl")
-# shader = mgl.ShaderProgram("assets/shaders/default3d.glsl")
-
-vertices = mgl.Buffer(
-    "36f",
-    [
-        -1.0,
-        -1.0,
-        0.0,
-        0.0,
-        1.0,
-        1.0,
-        0.0,
-        0.0,
-        1.0,
-        1.0,
-        -1.0,
-        1.0,
-        1.0,
-        1.0,
-        0.0,
-        1.0,
-        0.0,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        1.0,
-        -1.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-    ],
-)
-indices = mgl.Buffer("6i", [0, 1, 2, 3, 0, 2])
-vattrib = mgl.VAO("assets/shaders/default.glsl")
-vattrib.add_attribute("3f", "vvert")
-vattrib.add_attribute("2f", "vuv")
-vattrib.add_attribute("4f", "vcolor")
-# add attribs?
-vattrib.create_structure(vertices, indices)
-
-# ------------------------------ #
-# scripts imports
-
-# ------------------------------ #
-# scripts setup
-
 
 animation.Category.load_category("assets/sprites/tomato.json")
 registry = animation.Category.get_category_framedata("assets/sprites/tomato.json")[

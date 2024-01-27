@@ -8,6 +8,6 @@ setup(
     author_email="petrzhang20@gmail.com",
     packages=['soragl'],
     install_requires=[
-        'pygame', 'moderngl', 'numpy'
+        'pygame', 'moderngl', 'numpy', 'glm'
     ],
 )
