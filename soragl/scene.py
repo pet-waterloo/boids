@@ -14,6 +14,7 @@ from queue import deque
 # ------------------------------ #
 # scenehandler
 
+
 class SceneHandler:
     _STACK = deque()
     CURRENT = None
@@ -40,8 +41,10 @@ class SceneHandler:
         """Update the current scene"""
         cls._STACK[-1].update()
 
+
 # ------------------------------ #
 # scene - chunks
+
 
 class Chunk:
     def __init__(self, x: int, y: int, world, options: dict):
@@ -56,22 +59,22 @@ class Chunk:
         self.rq = []
         cpw, cph = options["chunkpixw"], options["chunkpixh"]
         self.rect = pygame.Rect(x * cpw, y * cph, cpw, cph)
-    
-    def _add_entity(self, entity: "Entity"):
+
+    def _add_entity(self, entity: ("Entity", int) ):
         """Add an entity to the chunk"""
         self._intrinstic_entities.add(entity)
-    
+
     def _remove_entity(self, entity: "Entity"):
         """Remove an entity from the chunk"""
         self._intrinstic_entities.remove(entity)
-    
+
     def add_entity(self, entity: "Entity"):
         """Add an entity to the chunk"""
-        self.aq.append(entity)
-    
+        self.aq.append((entity, entity.z))
+
     def remove_entity(self, entity: "Entity"):
         """Remove an entity from the chunk"""
-        self.rq.append(entity)
+        self.rq.append((entity, entity.z))
 
     def __hash__(self):
         """Hash the chunk"""
@@ -91,11 +94,13 @@ class Chunk:
         self.aq.clear()
         self.rq.clear()
         # update all intrinstic entities
-        for entity in self._intrinstic_entities:
+        for entity, z in self._intrinstic_entities:
             self._world._scene._global_entities[entity].update()
+
 
 # ------------------------------ #
 # scene - aspects
+
 
 class Aspect:
     def __init__(self, target_component_class: list, priority: int = 0):
@@ -126,7 +131,9 @@ class Aspect:
         # print(self._world._components[self._target])
         for t in self._targets:
             for entity in self._world._components[t]:
-                yield entity
+                if entity in self._world._scene._global_entities:
+                    yield entity
+
 
 # ------------------------------ #
 # components
@@ -147,6 +154,7 @@ class Component:
         """Create a component"""
         # private
         self._entity = None
+        self._aspect = None
 
         # public
         ComponentHandler.register_component(self)
@@ -167,6 +175,7 @@ class Component:
 
 # ------------------------------ #
 # world class
+
 
 class World:
     """
@@ -205,16 +214,16 @@ class World:
         # update active chunks
         self.set_center_chunk(0, 0)
 
-    # == entitiy
+    # == entity
     def get_entity(self, entity):
         """Get the entity -- from the GLOBAL entity handler"""
         return self.scene.get_entity(entity)
-    
+
     def remove_entity(self, entity):
         """Remove an entity from the world"""
         self._scene.remove_entity(entity)
 
-    def add_entity(self, entity):
+    def add_entity(self, entity: "Entity"):
         """Add an entity to the world"""
         entity.world = self
         self._scene.add_entity(entity)
@@ -232,10 +241,10 @@ class World:
         # update entity
         entity.c_chunk[0], entity.c_chunk[1] = new
 
-    def is_entity_active(self, entity):
+    def is_entity_active(self, entity: "Entity"):
         """Check if the entity is active"""
         for chunk in self._active_chunks:
-            if entity in self._chunks[chunk]._intrinstic_entities:
+            if (entity, 0) in self._chunks[chunk]._intrinstic_entities:
                 return True
         return False
 
@@ -245,7 +254,32 @@ class World:
             for entity in self._chunks[chunk]._intrinstic_entities:
                 yield self._scene.get_entity(entity)
 
-    # == comps
+    def iter_active_entities_filter_type(self, entity_type: "Type"):
+        """Iterate through the active entities"""
+        for chunk in self._active_chunks:
+            for entity in self._chunks[chunk]._intrinstic_entities:
+                if type(e) == entity_type:
+                    yield self._scene.get_entity(entity)
+
+    def iter_active_entities_filter_type_and_component(
+        self, entity_type: "Type", component: "Component"
+    ):
+        """Iterate through the active entities"""
+        for chunk in self._active_chunks:
+            for entity in self._chunks[chunk]._intrinstic_entities:
+                if type(e) == entity_type and component in entity._components:
+                    yield self._scene.get_entity(entity)
+
+    def iter_active_entities_filter_entity_exclude_self(
+        self, entity_type: "Type", entity: "Entity"
+    ):
+        """Iterate through the active entities"""
+        for chunk in self._active_chunks:
+            for e in self._chunks[chunk]._intrinstic_entities:
+                if type(e) == entity_type and e != entity:
+                    yield self._scene.get_entity(e)
+
+    # == components
     def add_component(self, entity, component):
         """Add a component to an entity in the world"""
         comp_hash = hash(component)
@@ -267,6 +301,13 @@ class World:
         comp_id = id(comp)
         if comp_hash in self._components:
             self._remove_c_.append((entity, comp))
+
+    def iterate_components(self, comp: "Component"):
+        """Iterate through the components"""
+        comp_hash = hash(comp)
+        if comp_hash in self._components:
+            for entity in self._components[comp_hash]:
+                yield self._scene.get_entity(entity)
 
     # == chunks
     def add_chunk(self, chunk):
@@ -294,6 +335,7 @@ class World:
                 self._center_chunk[1] + self.render_distance + 1,
             ):
                 self._active_chunks.add(hash(self.get_chunk(i, j)))
+        # print(len(self._active_chunks))
 
     def get_chunk(self, x: int, y: int):
         """Get the chunk"""
@@ -327,7 +369,7 @@ class World:
                 if isinstance(i, _):
                     return i
         return None
-    
+
     def get_aspects(self, *aspect_class):
         """Get an aspect"""
         for _ in aspect_class:
@@ -369,12 +411,38 @@ class World:
             cc = self.get_chunk(self._center_chunk[0], self._center_chunk[1])
             cr = cc.rect
             # propagate outwards in all 4 directions -- if width of 3 chunks > width of framebuffer
-            lx = [ix for ix in range(cc.rect.w * -self.render_distance + cc.rect.left, cc.rect.w * self.render_distance + cc.rect.right, cc.rect.w)]
-            ly = [iy for iy in range(cc.rect.h * -self.render_distance + cc.rect.top, cc.rect.h * self.render_distance + cc.rect.bottom, cc.rect.h)]
+            lx = [
+                ix
+                for ix in range(
+                    cc.rect.w * -self.render_distance + cc.rect.left,
+                    cc.rect.w * self.render_distance + cc.rect.right,
+                    cc.rect.w,
+                )
+            ]
+            ly = [
+                iy
+                for iy in range(
+                    cc.rect.h * -self.render_distance + cc.rect.top,
+                    cc.rect.h * self.render_distance + cc.rect.bottom,
+                    cc.rect.h,
+                )
+            ]
             for x in lx:
-                pygame.draw.line(SORA.DEBUGBUFFER, (255, 0, 0), (x - SORA.iOFFSET[0], 0), (x - SORA.iOFFSET[0], SORA.FSIZE[1]), 1)
+                pygame.draw.line(
+                    SORA.DEBUGBUFFER,
+                    (255, 0, 0),
+                    (x - SORA.iOFFSET[0], 0),
+                    (x - SORA.iOFFSET[0], SORA.FSIZE[1]),
+                    1,
+                )
             for y in ly:
-                pygame.draw.line(SORA.DEBUGBUFFER, (255, 0, 0), (0, y - SORA.iOFFSET[1]), (SORA.FSIZE[0], y - SORA.iOFFSET[1]), 1)
+                pygame.draw.line(
+                    SORA.DEBUGBUFFER,
+                    (255, 0, 0),
+                    (0, y - SORA.iOFFSET[1]),
+                    (SORA.FSIZE[0], y - SORA.iOFFSET[1]),
+                    1,
+                )
             # pygame.draw.rect(SORA.DEBUGBUFFER, (255, 0, 0), (cr.x - SORA.iOFFSET[0], cr.y - SORA.iOFFSET[1], cr.w, cr.h), 1)
         # == update components
         for i in self._remove_c_:
@@ -417,15 +485,22 @@ class Scene:
         self._new_entities = set()
         self._remove_entities = set()
 
-    def make_layer(self, config: dict, priority: int = 0, **kwargs):
+    def make_layer(self, config: dict, priority: int = 0, aspects: list = [], _type: "class" = World, **kwargs):
         """Add a layer to the scene"""
-        layer = World(self, config, priority, **kwargs)
+        layer = _type(self, config, priority, **kwargs)
         layer.priority = priority
+        # if aspects
+        for asp in aspects:
+            layer.add_aspect(asp)
+        return self.add_layer(layer)
+
+    def add_layer(self, layer: World):
+        """Add a layer to the scene"""
         self._layers.append(layer)
         self._layers.sort(key=lambda x: x.priority, reverse=True)
         return layer
 
-    def add_entity(self, entity):
+    def add_entity(self, entity: "Entity"):
         """Add an entity to the scene"""
         entity.scene = self
         # IMPORTANT: added but should not be updatable!!
@@ -466,8 +541,6 @@ class Scene:
             # add components + etc
             # register components in world
             w = pack.world
-            for comp in pack.components:
-                w.add_component(entity, comp)
             # add to chunk
             c = w.get_chunk(
                 pack.position.x // w._options["chunkpixw"],
@@ -483,10 +556,12 @@ class Scene:
         # update layers
         for layer in self._layers:
             layer.update()
-    
+
     def _remove_entity(self, entity: "Entity"):
         """Remove an entity from the scene"""
-        entity.world.get_chunk(entity.c_chunk[0], entity.c_chunk[1]).remove_entity(entity)
+        entity.world.get_chunk(entity.c_chunk[0], entity.c_chunk[1]).remove_entity(
+            entity
+        )
         # remove linked entities
         for link in entity._linked_entities:
             link.kill()
@@ -502,7 +577,7 @@ DEFAULT_CONFIG = {
     "chunktileh": 16,
     "tilepixw": 16,
     "tilepixh": 16,
-    "render_distance": 2
+    "render_distance": 2,
 }
 
 

@@ -35,15 +35,39 @@ def normalized_random():
     """Return a random number between -1 and 1"""
     return np.random.random() * 2 - 1
 
+
+def normalized_random_vec2():
+    """Return a random vector between -1 and 1"""
+    return Vector2(normalized_random(), normalized_random())
+
+
+def weighted_random(weight: float, desired: float, _error: float):
+    """Return a random number that is weighted towrads a certain value"""
+    return desired + (normalized_random() * _error * weight)
+
+
+def weighted_random_vec2(weight: float, desired: tuple, _error: float):
+    """Return a random vector that is weighted towrads a certain value"""
+    return Vector2(weighted_random(weight, desired[0], _error),
+                   weighted_random(weight, desired[1], _error))
+
+
+def random_range_vec2(lmax: int, rmax: int):
+    """Return a random vector between two vectors"""
+    return Vector2(np.random.uniform(0, lmax), np.random.uniform(0, rmax))
+
+
 def rotate_point_about(point: "(x,y)", center: "(x,y)", angle: float) -> "(x,y)":
     """Rotate a point about another point"""
     s, c = math.sin(angle), math.cos(angle)
     x, y = point[0] - center[0], point[1] - center[1]
     return [point[0] + x * c - y * s, center[1] + x * s + y * c]
 
+
 def map_arr_to_iarr(arr: list):
     """Convert an array to integer array"""
     return list(map(int, arr))
+
 
 def hex_to_tuple(hex: str) -> list:
     """Convert hex to tuple (rgb)"""
@@ -54,7 +78,7 @@ def hex_to_tuple(hex: str) -> list:
 # curve functions
 # ------------------------------------------------------------ #
 
-
+# ==== curves
 class Curve:
     ZERO = 1 / 1e9
     INF = 1e9
@@ -100,8 +124,6 @@ class Curve:
 
 
 # ==== linear
-
-
 class Linear(Curve):
     @classmethod
     def get_from_points(cls, p1: tuple, p2: tuple):

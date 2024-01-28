@@ -4,15 +4,43 @@ import struct
 
 from pygame import draw as pgdraw
 from pygame import math as pgmath
-from soragl import animation, scene, physics, base_objects, mgl
+
+from soragl import (
+    animation,
+    scene,
+    physics,
+    base_objects,
+    mgl,
+    smath,
+    signal,
+    statesystem,
+)
+
+from soragl.ui import ui
+
+# -------------------------------------------------------------- #
+# setup
+
+WW = 1280
+WINDOW_SIZE = [WW, int(WW / 16 * 9)]
+WW = 1280 // 3
+FB_SIZE = [WW, int(WW / 16 * 9)]
+
+# mac version -- since no opengl
 
 # ------------------------------ #
 # setup
+
 SORA.initialize(
     {
         "fps": 30,
         "window_size": [1280, 720],
-        "window_flags": pygame.RESIZABLE, #| pygame.OPENGL | pygame.DOUBLEBUF,
+        "window_flags": pygame.RESIZABLE
+        | pygame.DOUBLEBUF
+        | pygame.HWSURFACE
+        | pygame.OPENGL
+        if SORA.get_os() == SORA.OS_WINDOWS
+        else 0,
         "window_bits": 32,
         "framebuffer_flags": pygame.SRCALPHA,
         "framebuffer_size": [1280 // 3, 720 // 3],
@@ -23,56 +51,78 @@ SORA.initialize(
 
 SORA.create_context()
 
-# ------------------------------ #
-# import gl?
+# if moderngl stuff setup
 if SORA.is_flag_active(pygame.OPENGL):
-    from soragl import mgl
-    from soragl.mgl import ModernGL
-    print("Configured Pygame for OpenGL")
+    mgl.ModernGL.create_context(
+        options={
+            "standalone": False,
+            "gc_mode": "context_gc",
+            "clear_color": [0.0, 0.0, 0.0, 1.0],
+        }
+    )
+
+# -------------------------------------------------------------- #
+# imports
 
 
-# ------------------------------ #
+from scripts import boid
 
-
+# -------------------------------------------------------------- #
 
 sc = scene.Scene(config=scene.load_config(scene.Scene.DEFAULT_CONFIG))
-scw = sc.make_layer(sc.get_config(), 1)
-scw.get_chunk(0, 0)
+sc._config["chunkpixw"] = 100
+sc._config["chunkpixh"] = 100
+sc._config["render_distance"] = 5
 
-# sce = physics.Entity()
-# sceparticle = physics.ParticleHandler(create_func="custom", update_func="custom")
-# sceparticle.position += (200, 150)
-# sceparticle["interval"] = 0.5
-
-# # add entities to world first
-# scw.add_entity(sce)
-# scw.add_entity(sceparticle)
-
-# # entity comp
-# sce.add_component(base_objects.Collision2DComponent())
-# sce.position += (100, 100)
-# sce.area = (20, 20)
-# # sce1.static = True
-
-# # physics
-# sce.add_component(base_objects.Collision2DComponent())
+scw = sc.make_layer(
+    sc.get_config(),
+    1,
+    [
+        base_objects.TileMapDebug(),
+        base_objects.SpriteRendererAspect(),
+        base_objects.Collision2DAspect(),
+        # base_objects.Collision2DRendererAspectDebug(),
+        # base_objects.Area2DAspect(),
+        base_objects.Area2DRendererAspectDebug(),
+        base_objects.ScriptAspect(),
+        base_objects.CameraAspect(),
+    ],
+)
 
 
+test1 = scw.add_entity(boid.Boid(100, 100))
 
 
-# aspects
-scw.add_aspect(base_objects.TileMapDebug())
-scw.add_aspect(base_objects.Collision2DRendererAspectDebug())
+# -------------------------------- #
 
+BG_COL = (0, 0, 0)
+
+# -------------------------------- #
+# add to scw -- game world
+
+# -- add entities
+# particle handler test
+ph = scw.add_entity(physics.ParticleHandler(handler_type="square"))
+ph.position += (100, 100)
+ph["interval"] = 1 / 15
+
+ph = scw.add_entity(physics.ParticleHandler(handler_type="triangle"))
+ph.position += (200, 100)
+ph["interval"] = 1 / 15
+
+
+# -------------------------------- #
 # push scene
 scene.SceneHandler.push_scene(sc)
 
-# ------------------------------ #
+
+# -------------------------------------------------------------- #
 # game loop
 SORA.start_engine_time()
 while SORA.RUNNING:
     # SORA.FRAMEBUFFER.fill((255, 255, 255, 255))
-    SORA.FRAMEBUFFER.fill((0, 0, 0, 255))
+    # SORA.FRAMEBUFFER.fill((0, 0, 0, 255))
+    SORA.FRAMEBUFFER.fill(BG_COL)
     SORA.DEBUGBUFFER.fill((0, 0, 0, 0))
     # pygame update + render
     scene.SceneHandler.update()
@@ -80,16 +130,18 @@ while SORA.RUNNING:
     if SORA.is_key_clicked(pygame.K_d) and SORA.is_key_pressed(pygame.K_LSHIFT):
         SORA.DEBUG = not SORA.DEBUG
 
-    SORA.FRAMEBUFFER.blit(SORA.DEBUGBUFFER, (0, 0))
-
+    # update signals
+    signal.handle_signals()
     # push frame
-    # SORA.push_framebuffer()
-    pygame.display.flip()
+    SORA.push_framebuffer()
+    # pygame.display.flip()
     # update events
     SORA.update_hardware()
     SORA.handle_pygame_events()
     # clock tick
     SORA.CLOCK.tick(SORA.FPS)
     SORA.update_time()
+
+# ------------------------------- #
 
 pygame.quit()

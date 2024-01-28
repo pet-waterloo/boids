@@ -35,16 +35,17 @@ class ModernGL:
 
     # ------------------------------ #
     @classmethod
-    def create_context(cls, options: dict):
+    def create_context(cls, options: dict, **settings: dict):
         """Creates moderngl context."""
-        cls.CTX = moderngl.create_context(options["standalone"])
+        cls.CTX = moderngl.create_context(options["standalone"], **settings)
         cls.CTX.gc_mode = options["gc_mode"] if "gc_mode" in options else None
         cls.CLEARCOLOR = (
             options["clear_color"] if "clear_color" in options else ModernGL.CLEARCOLOR
         )
+
         # create the quad buffer for FB
-        print("quad buffer needs to be replaced with custom vao object")
-        cls.FB_VAO = VAO()
+        # print("quad buffer needs to be replaced with custom vao object")
+        cls.FB_VAO = VAO(options.get("shader"))
         cls.FB_vBUFFER = Buffer(
             "20f",
             [
@@ -400,14 +401,14 @@ class VAO:
     SCALAR = 0
     VECTOR = 1
 
-    def __init__(self, shader_path: str = ShaderProgram.DEFAULT):
+    def __init__(self, shader_path: str = None):
         """Creates an empty VAO"""
         self.attributes = []
         self.vbo = None
         self.ibo = None
         self.vao = None
-        self.uniforms = UniformHandler(shader_path)
-        self.shader = shader_path
+        self.shader = ShaderProgram.DEFAULT if not shader_path else shader_path
+        self.uniforms = UniformHandler(self.shader)
         self.initialized = False
 
     def add_attribute(self, parse: str, var_name: str):

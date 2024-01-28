@@ -11,6 +11,7 @@ from pygame import transform as pgtrans
 import json
 import os
 
+import math
 from soragl import misc, smath
 
 # ------------------------------ #
@@ -21,6 +22,7 @@ class FrameData:
         self.frame = frame
         self.duration = duration
         self.order = order
+        self.area = frame.get_size()
 
     def get_frame(self):
         """Get the frame"""
@@ -94,7 +96,6 @@ class SpriteSheet:
 
     def __getitem__(self, index: int):
         """Get a frame at a specified index"""
-        # print(self.frames)
         return self.frames[index].get_frame()
 
     def __iter__(self):
@@ -105,14 +106,14 @@ class SpriteSheet:
 # frame registry
 
 class SequenceRegistry:
-    def __init__(self, parent):
+    def __init__(self, parent: "Sequence"):
         """Allows access to animation sequence"""
         self.parent = parent
         self.findex = 0
         self.f = 0
         self.fini = 0
         self.fdata = parent.get_frame_data(self.f)
-        self.timer = SORA.get_timer(limit=self.fdata.duration, loop=True)
+        self.timer = misc.Timer(limit=self.fdata.duration, loop=True)
 
     def update(self):
         self.timer.update()
@@ -210,7 +211,7 @@ class Category:
         # load all image files
         dx = options.get("dx", 0)
         dy = options.get("dy", 0)
-        print(dx, dy)
+        # print(dx, dy)
         result = SpriteSheet(None, 0, 0, 0, 0)
         result.image = folder
         for i, f in enumerate(_files):
@@ -288,19 +289,19 @@ class Category:
 
     #===
     @classmethod
-    def add_sequence(cls, name: str, meta: dict, sequence: Sequence):
+    def add_sequence(cls, name: str, meta: dict, sequence: Sequence) -> None:
         """Add a sequence to the category"""
         cls.SEQUENCES[name] = {"meta": meta, "framedata": {name: sequence}}
 
     @classmethod
-    def get_registries_for_all(cls, filename: str):
+    def get_registries_for_all(cls, filename: str) -> {"Animation Name": "Registry"}:
         """Get a dictionary of registries for all sequences in a category"""
         return {
             k: v.get_registry() for k, v in cls.get_category_framedata(filename).items()
         }
         
     @classmethod
-    def get_category_framedata(cls, filename: str):
+    def get_category_framedata(cls, filename: str) -> {"Animation Name": "Sequence"}:
         """Return the animation parsed framedata"""
         return cls.SEQUENCES[filename]["framedata"]
 
@@ -322,55 +323,81 @@ def generate_options(width: int = 0, height: int = 0):
 class RotatedRegistry(SequenceRegistry):
     def __init__(self, parent, angle):
         super().__init__(parent)
-        self.angle = angle
+        self._angle = angle
 
     def update(self):
         self.timer.update()
         if self.timer.loopcount:
             self.f += 1
             self.f %= len(self.parent)
-            self.fdata = self.parent.get_frame_data(self.f, self.angle)
             self.timer.reset_timer(self.fdata.duration)
 
     def get_frame(self):
         """Get the current animation frame"""
-        return self.fdata.get_frame()
+        return self.parent.get_frame(self.f, self._angle)
+    
+    @property
+    def angle(self):
+        return self._angle
+    
+    @angle.setter
+    def angle(self, value):
+        self._angle = value
+
 
 class RotatedSequence(Sequence):
     @classmethod
     def generate_angles(cls, start: int, end: int, skip: int):
         """Generate angles"""
         return list(range(start, end, skip))
+    
     # ------------------------------ #
+    
     def __init__(self, sequence: "Sequence", angle_range: tuple = (0, 360, 30)):
         super().__init__([], sequence._metadata)
         # angle range
-        self.angle_range = angle_range
+        self.angle_range = list(map(int, angle_range))
+        self._rcount = angle_range[1] // angle_range[2]
+        
+        # duration
+        self._o_size = len(sequence)
+        self._size = len(sequence) * self._rcount
+        self.duration = sequence.duration
+        # print(self._o_size, self._size, self._rcount, angle_range)
+        self.width = 0
+        self.height = 0
+
         # rotate frames - angles
         frames = sequence.sprite_sheet.frames
         for a in range(self.angle_range[0], self.angle_range[1], self.angle_range[2]):
+            # print(a, self.angle_range)
             for i in range(len(frames)):
                 r_frame = pgtrans.rotate(frames[i].frame, a)
                 r_data = FrameData(r_frame, frames[i].duration, frames[i].order)
                 self.sprite_sheet.frames.append(r_data)
-        # duration
-        self.duration = sequence.duration
-        self._size = len(sequence)
+                # add to width // height
+                self.width += r_frame.get_width()
+                # print(r_frame)
+            self.height += r_frame.get_height()
+        
+        # print("frames", len(self.sprite_sheet.frames))
+        
     
     # ------------------------------ #
-    def get_frame_data(self, index, angle: float=0):
+    def get_frame_data(self, frame, angle: float=0):
         """Get a frame at a specified index and angle"""
         # prob fix this 1:15am code
         offset = round(smath.__clamp__(angle % 360, 0, 360) / self.angle_range[2])
         # return super().get_frame_data(index * len(self) + offset)
-        return super().get_frame_data(index + offset * len(self))
+        return super().get_frame_data(offset * self._o_size + frame)
 
-    def get_frame(self, index: int, angle:float=0):
+    def get_frame(self, frame: int, angle: float=0):
         """Get a frame at a specified index and angle"""
         # prob fix this 1:15am code
+        # print(frame, angle, self._o_size)
         offset = round(smath.__clamp__(angle % 360, 0, 360) / self.angle_range[2])
         # return super().get_frame(index + offset * len(self))
-        return super().get_frame(index * len(self) + offset)
+        return super().get_frame(offset * self._o_size + frame)
 
     def get_registry(self, angle: float=0):
         """Get a sequence registry"""
@@ -379,5 +406,5 @@ class RotatedSequence(Sequence):
     # ------------------------------ #
     def __len__(self):
         """Get the number of frames in the sequence"""
-        return self._size
+        return self._o_size
 

@@ -39,7 +39,7 @@ ENGINE_START_TIME = 0
 
 START_TIME = 0
 END_TIME = 0
-DELTA = 0
+DELTA = 1
 
 
 def start_engine_time():
@@ -47,7 +47,6 @@ def start_engine_time():
     global ENGINE_START_TIME, START_TIME, END_TIME, DELTA
     ENGINE_START_TIME = time.time()
     START_TIME = ENGINE_START_TIME
-    update_time()
 
 
 def update_time():
@@ -71,73 +70,37 @@ def get_current_time():
     return START_TIME
 
 
-# ------------------------------------------------ #
+# --------------------------------- #
 # global clock queue
-# ------------------------------------------------ #
+# --------------------------------- #
 
 ALL_CLOCKS = {}
 ACTIVE_CLOCKS = set()
-REMOVE_ARR = set()
+ADD_ARR, REMOVE_ARR = [], [] 
 
 
 def deactivate_timer(timer):
     """Deactivate a timer"""
-    REMOVE_ARR.add(timer.hash)
+    # print(timer)
+    if timer.hash in ACTIVE_CLOCKS:
+        REMOVE_ARR.append(timer.hash)
 
 
 def activate_timer(timer):
     """Activate a timer"""
-    ACTIVE_CLOCKS.add(timer.hash)
-
-
-def get_timer(limit: float = 0, loop: bool = False):
-    """Get a timer object"""
-    c = Timer(limit, loop)
-    ALL_CLOCKS[c.hash] = c
-    activate_timer(c)
-    return c
+    ADD_ARR.append(timer.hash)
 
 
 def update_global_clocks():
     """Update all active clocks"""
+    for a in ADD_ARR:
+        ACTIVE_CLOCKS.add(a)
     for c in ACTIVE_CLOCKS:
         ALL_CLOCKS[c].update()
-    for c in REMOVE_ARR:
-        ACTIVE_CLOCKS.remove(c)
+    for b in REMOVE_ARR:
+        if b in ACTIVE_CLOCKS: ACTIVE_CLOCKS.remove(b)
+    ADD_ARR.clear()
     REMOVE_ARR.clear()
-
-
-# ------------------------------------------------ #
-# timer class
-# ------------------------------------------------ #
-
-
-class Timer:
-    def __init__(self, limit: float, loop: bool):
-        self.hash = hash(self)
-        self.initial = get_current_time()
-        self.passed = 0
-        self.loopcount = 0
-        self.limit = limit
-        self.loop = loop
-
-    def update(self):
-        """Updates the clock - throws a signal when finished"""
-        self.passed += DELTA
-        # to implement sending signals -- when completed!
-        # print(self.passed)
-        if self.passed > self.limit:
-            # -- emit a signal
-            self.passed = 0
-            self.loopcount += 1
-            if not self.loop:
-                deactivate_timer(self)
-
-    def reset_timer(self, time: float = 0):
-        """Reset the timer"""
-        self.initial = get_current_time()
-        self.passed = 0
-        self.loopcount = 0
 
 
 # ------------------------------------------------ #
@@ -162,6 +125,7 @@ MODERNGL = False
 def initialize(options: dict = {}) -> None:
     """Initialize Sora Engine with options"""
     global FPS, WSIZE, WFLAGS, WBITS, FFLAGS, FSIZE, FHSIZE, FBITS, MODERNGL, DEBUG
+    pygame.init()
     FPS = options["fps"] if "fps" in options else 60
     WSIZE = options["window_size"] if "window_size" in options else [1280, 720]
     WFLAGS = (
@@ -183,6 +147,10 @@ def initialize(options: dict = {}) -> None:
     MODERNGL = is_flag_active(pygame.OPENGL)
     if MODERNGL:
         from . import mgl
+    
+    # pygame mixer
+    make_channel("main")
+    make_channel("sfx")
 
 
 # check if certain flags are active
@@ -441,7 +409,12 @@ def load_audio(path):
     return AUDIO[path]
 
 
-def play_audio(path, channel):
+def play_audio(path, loops: int = 0, maxtime: int = 0, fade_ms: int = 0):
+    """Plays audio."""
+    load_audio(path).play(loops, maxtime, fade_ms)
+
+
+def play_audio_in_channel(path, channel):
     """Plays audio on channel."""
     CHANNELS[channel].play(load_audio(path))
 
