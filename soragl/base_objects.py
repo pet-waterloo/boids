@@ -388,7 +388,6 @@ class Collision2DAspect(scene.Aspect):
             self._tile_map = self._world.get_aspect(TileMapDebug)
         # if not exist then oh well lmao
 
-    @staticmethod
     def handle_movement(self, entity):
         """Handle the movement of the entity"""
         """

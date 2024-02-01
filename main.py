@@ -2,6 +2,8 @@ import pygame
 import soragl as SORA
 import struct
 
+import random
+
 from pygame import draw as pgdraw
 from pygame import math as pgmath
 
@@ -23,7 +25,7 @@ from soragl.ui import ui
 
 WW = 1280
 WINDOW_SIZE = [WW, int(WW / 16 * 9)]
-WW = 1280 // 3
+WW = 1280 // 2
 FB_SIZE = [WW, int(WW / 16 * 9)]
 
 # mac version -- since no opengl
@@ -43,9 +45,9 @@ SORA.initialize(
         else 0,
         "window_bits": 32,
         "framebuffer_flags": pygame.SRCALPHA,
-        "framebuffer_size": [1280 // 3, 720 // 3],
+        "framebuffer_size": FB_SIZE,
         "framebuffer_bits": 32,
-        "debug": True,
+        "debug": False,
     }
 )
 
@@ -64,15 +66,17 @@ if SORA.is_flag_active(pygame.OPENGL):
 # -------------------------------------------------------------- #
 # imports
 
+from scripts import singleton
 
 from scripts import boid
+
 
 # -------------------------------------------------------------- #
 
 sc = scene.Scene(config=scene.load_config(scene.Scene.DEFAULT_CONFIG))
-sc._config["chunkpixw"] = 100
-sc._config["chunkpixh"] = 100
-sc._config["render_distance"] = 5
+sc._config["chunkpixw"] = SORA.FSIZE[0] // singleton.CHUNKS
+sc._config["chunkpixh"] = SORA.FSIZE[1] // singleton.CHUNKS
+sc._config["render_distance"] = singleton.CHUNKS + 2
 
 scw = sc.make_layer(
     sc.get_config(),
@@ -90,7 +94,12 @@ scw = sc.make_layer(
 )
 
 
-test1 = scw.add_entity(boid.Boid(100, 100))
+print(SORA.FSIZE)
+
+for i in range(200):
+    scw.add_entity(boid.Boid(random.randint(0, 200), random.randint(0, 200)))
+
+# test1 = scw.add_entity(boid.Boid(100, 100))
 
 
 # -------------------------------- #
@@ -102,13 +111,13 @@ BG_COL = (0, 0, 0)
 
 # -- add entities
 # particle handler test
-ph = scw.add_entity(physics.ParticleHandler(handler_type="square"))
-ph.position += (100, 100)
-ph["interval"] = 1 / 15
+# ph = scw.add_entity(physics.ParticleHandler(handler_type="square"))
+# ph.position += (100, 100)
+# ph["interval"] = 1 / 15
 
-ph = scw.add_entity(physics.ParticleHandler(handler_type="triangle"))
-ph.position += (200, 100)
-ph["interval"] = 1 / 15
+# ph = scw.add_entity(physics.ParticleHandler(handler_type="triangle"))
+# ph.position += (200, 100)
+# ph["interval"] = 1 / 15
 
 
 # -------------------------------- #

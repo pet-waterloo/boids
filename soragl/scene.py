@@ -217,7 +217,7 @@ class World:
     # == entity
     def get_entity(self, entity):
         """Get the entity -- from the GLOBAL entity handler"""
-        return self.scene.get_entity(entity)
+        return self._scene.get_entity(entity)
 
     def remove_entity(self, entity):
         """Remove an entity from the world"""
