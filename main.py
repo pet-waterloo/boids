@@ -25,7 +25,7 @@ from soragl.ui import ui
 
 WW = 1280
 WINDOW_SIZE = [WW, int(WW / 16 * 9)]
-WW = 1280 // 2
+WW = 1280 // 2.3
 FB_SIZE = [WW, int(WW / 16 * 9)]
 
 # mac version -- since no opengl
@@ -68,7 +68,7 @@ if SORA.is_flag_active(pygame.OPENGL):
 
 from scripts import singleton
 
-from scripts import boid
+from scripts import boid, explode
 
 
 # -------------------------------------------------------------- #
@@ -118,6 +118,9 @@ BG_COL = (0, 0, 0)
 # ph = scw.add_entity(physics.ParticleHandler(handler_type="triangle"))
 # ph.position += (200, 100)
 # ph["interval"] = 1 / 15
+
+
+# TODO - figure out how ot add signal s+ et
 
 
 # -------------------------------- #

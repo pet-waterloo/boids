@@ -8,6 +8,9 @@ from soragl import physics, base_objects, smath
 
 from scripts import singleton
 
+DISTANCE = 100
+MAX_SPEED = 120
+
 
 class Boid(physics.Entity):
     TYPE = "BOID"
@@ -19,6 +22,7 @@ class Boid(physics.Entity):
             (random.random() - 0.5) * 40 + 80
         )
         self.n_vel = self.velocity.normalize()
+        self.flow_angle = 0
 
     def on_ready(self):
         # create components
@@ -41,9 +45,10 @@ class Boid(physics.Entity):
     def script(self):
         pygame.draw.circle(SORA.FRAMEBUFFER, (255, 255, 255), self.position, 1)
         # draw velocity vector
+        c = int(255*smath.__clamp__(((self.velocity.magnitude()*1.4 - MAX_SPEED)/MAX_SPEED), 0, 1))
         pygame.draw.line(
             SORA.FRAMEBUFFER,
-            (255, 0, 0),
+            (c, abs(c - 200), abs(c - 100)),
             self.position,
             self.position + self.velocity.normalize() * 10,
         )
@@ -54,6 +59,8 @@ class Boid(physics.Entity):
         # properties to sum
 
         vel_sum = pgmath.Vector2(0, 0)
+        cohesion_sum = pgmath.Vector2(0, 0)
+        separation_sum = pgmath.Vector2(0, 0)
 
         # time to draw lines
         for dx, dy in [
@@ -74,11 +81,16 @@ class Boid(physics.Entity):
                 if e[1] is self._entity_id:
                     continue
                 # create a weighted movement vector
-                dis = (e[0].position - self.position).magnitude()
-                if dis > 50: continue
-                vel_sum += e[0].n_vel * dis_weight_func(dis)
+                off = e[0].position - self.position
+                dis = off.magnitude()
+                if dis > DISTANCE:
+                    continue
+                vel_sum += e[0].n_vel * dis_weight_func_vel(dis)
+                cohesion_sum += off * dis_weight_func_coh(dis)
+                separation_sum += off * dis_weight_func_sep(dis)
                 if self._entity_id == 1:
                     # draw lines to nearby entities
+                    # continue
                     pygame.draw.line(
                         SORA.FRAMEBUFFER,
                         (255, 255, 255),
@@ -87,10 +99,17 @@ class Boid(physics.Entity):
                     )
 
         # add weighted properties
-        self.velocity += vel_sum * SORA.DELTA * 30
-        self.velocity.xy = smath.__clamp__(self.velocity.x, -100, 100), smath.__clamp__(
-            self.velocity.y, -100, 100
+        self.velocity += (
+            (vel_sum + cohesion_sum + separation_sum * 0.6) * SORA.DELTA * 60
         )
+        self.velocity.xy = smath.__clamp__(self.velocity.x, -MAX_SPEED, MAX_SPEED), smath.__clamp__(
+            self.velocity.y, -MAX_SPEED, MAX_SPEED
+        )
+        self.flow_angle += (random.random() * 10 - 5) * SORA.DELTA
+        self.flow_angle = smath.__clamp__(self.flow_angle, -2, 2)
+        # self.flow_angle *= 0.99
+        # TODO: add rotation
+        self.velocity = self.velocity.rotate(self.flow_angle)
 
     def debug(self, surface):
         pass
@@ -99,6 +118,16 @@ class Boid(physics.Entity):
         super().kill()
 
 
+def w_func(d: float):
+    return (10 * d) / (d * d + 100)
+
 # custom weight functions
-def dis_weight_func(d: float):
-    return 1 / (d / 10 + 2.7)
+def dis_weight_func_vel(d: float):
+    return 1/ (d/10 + 2) 
+
+def dis_weight_func_coh(d: float):
+    return w_func(d-10)/14
+
+
+def dis_weight_func_sep(d: float):
+    return -w_func(d + 20) / 4
