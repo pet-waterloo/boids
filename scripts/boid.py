@@ -2,8 +2,10 @@ import pygame
 import random
 
 import pygame.math as pgmath
+import math
 
 import soragl as SORA
+from soragl import scene
 from soragl import physics, base_objects, smath
 
 from scripts import singleton
@@ -45,12 +47,20 @@ class Boid(physics.Entity):
     def script(self):
         pygame.draw.circle(SORA.FRAMEBUFFER, (255, 255, 255), self.position, 1)
         # draw velocity vector
-        c = int(255*smath.__clamp__(((self.velocity.magnitude()*1.4 - MAX_SPEED)/MAX_SPEED), 0, 1))
+        cx = int(60*math.sin(self.position.x * SORA.DELTA)) + 120
+        cy = int(30 * math.cos(self.position.y * SORA.DELTA)) + 190
         pygame.draw.line(
             SORA.FRAMEBUFFER,
-            (c, abs(c - 200), abs(c - 100)),
+            (cx, cy, 250 - cx),
             self.position,
             self.position + self.velocity.normalize() * 10,
+        )
+        perp_vel = self.n_vel.rotate(90) * 5
+        pygame.draw.line(
+            SORA.FRAMEBUFFER,
+            (cx, cy, 250-cx),
+            self.position + perp_vel + self.n_vel * 2,
+            self.position - perp_vel + self.n_vel * 2,
         )
 
         # if self._entity_id in [1, 2]:
@@ -58,9 +68,9 @@ class Boid(physics.Entity):
 
         # properties to sum
 
-        vel_sum = pgmath.Vector2(0, 0)
-        cohesion_sum = pgmath.Vector2(0, 0)
-        separation_sum = pgmath.Vector2(0, 0)
+        vel_sum = pgmath.Vector2(self.n_vel)
+        cohesion_sum = pgmath.Vector2(self.n_vel)
+        separation_sum = pgmath.Vector2(self.n_vel)
 
         # time to draw lines
         for dx, dy in [
@@ -100,16 +110,17 @@ class Boid(physics.Entity):
 
         # add weighted properties
         self.velocity += (
-            (vel_sum + cohesion_sum + separation_sum * 0.6) * SORA.DELTA * 60
+            (vel_sum.normalize() * 4 + cohesion_sum.normalize() * 2 + separation_sum.normalize() * 2) * SORA.DELTA * 60
         )
         self.velocity.xy = smath.__clamp__(self.velocity.x, -MAX_SPEED, MAX_SPEED), smath.__clamp__(
             self.velocity.y, -MAX_SPEED, MAX_SPEED
         )
         self.flow_angle += (random.random() * 10 - 5) * SORA.DELTA
         self.flow_angle = smath.__clamp__(self.flow_angle, -2, 2)
-        # self.flow_angle *= 0.99
+        self.flow_angle *= 0.98
         # TODO: add rotation
         self.velocity = self.velocity.rotate(self.flow_angle)
+        self.velocity *= 0.94
 
     def debug(self, surface):
         pass
@@ -123,11 +134,10 @@ def w_func(d: float):
 
 # custom weight functions
 def dis_weight_func_vel(d: float):
-    return 1/ (d/10 + 2) 
+    return 1/ (d/10 + 3) 
 
 def dis_weight_func_coh(d: float):
-    return w_func(d-10)/14
-
+    return w_func(d-10)/3
 
 def dis_weight_func_sep(d: float):
-    return -w_func(d + 20) / 4
+    return -w_func(d + 20) / 2

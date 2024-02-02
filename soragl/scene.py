@@ -22,7 +22,7 @@ class SceneHandler:
     @classmethod
     def push_scene(cls, scene):
         """Add a scene to the stack"""
-        CURRENT = scene
+        SceneHandler.CURRENT = scene
         cls._STACK.append(scene)
 
     @classmethod
@@ -252,14 +252,14 @@ class World:
         """Iterate through the active entities"""
         for chunk in self._active_chunks:
             for entity in self._chunks[chunk]._intrinstic_entities:
-                yield self._scene.get_entity(entity)
+                yield entity[0]
 
     def iter_active_entities_filter_type(self, entity_type: "Type"):
         """Iterate through the active entities"""
         for chunk in self._active_chunks:
             for entity in self._chunks[chunk]._intrinstic_entities:
-                if type(e) == entity_type:
-                    yield self._scene.get_entity(entity)
+                if entity[0].__class__ == entity_type:
+                    yield entity[0]
 
     def iter_active_entities_filter_type_and_component(
         self, entity_type: "Type", component: "Component"
@@ -267,17 +267,17 @@ class World:
         """Iterate through the active entities"""
         for chunk in self._active_chunks:
             for entity in self._chunks[chunk]._intrinstic_entities:
-                if type(e) == entity_type and component in entity._components:
-                    yield self._scene.get_entity(entity)
+                if entity[0].__class__ == entity_type and component in entity._components:
+                    yield entity[0]
 
     def iter_active_entities_filter_entity_exclude_self(
         self, entity_type: "Type", entity: "Entity"
     ):
         """Iterate through the active entities"""
         for chunk in self._active_chunks:
-            for e in self._chunks[chunk]._intrinstic_entities:
-                if type(e) == entity_type and e != entity:
-                    yield self._scene.get_entity(e)
+            for entity in self._chunks[chunk]._intrinstic_entities:
+                if entity[0].__class__ == entity_type and e[0] != entity:
+                    yield entity[0]
 
     # == components
     def add_component(self, entity, component):

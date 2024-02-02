@@ -122,6 +122,11 @@ BG_COL = (0, 0, 0)
 
 # TODO - figure out how ot add signal s+ et
 
+explode_signal = signal.register_signal(explode.ExplodeSignalRegister())
+explode_receive = explode.ExplodeReceiver()
+explode_signal.add_receiver(explode_receive)
+
+
 
 # -------------------------------- #
 # push scene
@@ -141,6 +146,8 @@ while SORA.RUNNING:
 
     if SORA.is_key_clicked(pygame.K_d) and SORA.is_key_pressed(pygame.K_LSHIFT):
         SORA.DEBUG = not SORA.DEBUG
+    if SORA.is_key_clicked(pygame.K_SPACE):
+        explode_signal.emit_signal()
 
     # update signals
     signal.handle_signals()
