@@ -19,7 +19,8 @@ class Boid(physics.Entity):
         super().__init__(Boid.TYPE)
         self.position = x, y
         self.velocity = smath.normalized_random_vec2() * (
-            (random.random() - 0.5) * 40 + 80
+            # (random.random() - 0.5) * 40 + 80
+            (random.random() - 0.5) *20 + 20
         )
         self.n_vel = self.velocity.normalize()
         self.flow_angle = 0
@@ -31,14 +32,14 @@ class Boid(physics.Entity):
 
     def update(self):
         self.n_vel = self.velocity.normalize()
-        if self.position.x > SORA.FSIZE[0]:
-            self.position.x = 0
+        if self.position.x > SORA.FSIZE[0] - 100:
+            self.velocity.x -= 50
         if self.position.x < 0:
-            self.position.x = SORA.FSIZE[0]
-        if self.position.y > SORA.FSIZE[1]:
-            self.position.y = 0
+            self.velocity.x += 50
+        if self.position.y > SORA.FSIZE[1] - 100:
+            self.velocity.y -= 50
         if self.position.y < 0:
-            self.position.y = SORA.FSIZE[1]
+            self.velocity.y += 50
 
         # print(0 < self.position.x < SORA.FSIZE[0] and 0 < self.position.y < SORA.FSIZE[1])
 
